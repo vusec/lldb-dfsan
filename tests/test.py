@@ -63,7 +63,8 @@ print("Running {num} tests".format(num=len(tests)))
 had_error = False
 for test in tests:
     test_name = os.path.basename(test)
-    sys.stdout.write("• " + test_name + ": ")
+    sys.stdout.write("• " + test_name + " ")
+    sys.stdout.flush()
     try:
         run_test(test)
     except sp.CalledProcessError as e:
@@ -74,7 +75,8 @@ for test in tests:
         if e.stderr:
             print(e.stderr.decode("utf-8"))
         continue
-    print(Color.PASS + " OK " + Color.END)
+    sys.stdout.write((30 - len(test_name)) * " ")
+    print("[" + Color.PASS + "OK" + Color.END + "]")
 
 if had_error:
     sys.exit(1)

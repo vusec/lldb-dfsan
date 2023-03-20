@@ -43,16 +43,18 @@ def format_label(label : int):
       return "No taint"
    return Color.BOLD + Color.RED + "(Taint class " + str(label) + ")" + Color.END
 
-def print_label(frame, var : lldb.SBValue, indentation = 0):
+def print_label(result : lldb.SBCommandReturnObject, frame,
+                var : lldb.SBValue, indentation = 0):
+   indent = " " * indentation
    type = var.GetType() # type: lldb.SBType
    if type.type == lldb.eTypeClassBuiltin:
-      sys.stdout.write(" " * indentation + str(var.name))
-      print(" - " + format_label(get_label_of_value(frame, var)))
+      result.Print(indent + str(var.name))
+      result.Print(" - " + format_label(get_label_of_value(frame, var)) + "\n")
    if type.type == lldb.eTypeClassStruct or type.type == lldb.eTypeClassClass:
-      print("struct " + type.name + " {")
+      result.Print(indent + "struct " + type.name + " {\n")
       for child in var.children:
-         print_label(frame, child, indentation + 2)
-      print("}")
+         print_label(result, frame, child, indentation + 2)
+      result.Print(indent + "}\n")
 
 def label(debugger, command, result, dict):
 
@@ -79,7 +81,7 @@ def label(debugger, command, result, dict):
       frame = process.GetSelectedThread().GetSelectedFrame()
       if frame:
         var = frame.FindVariable(args[0])
-        print_label(frame, var)
+        print_label(result, frame, var)
 
 def __lldb_init_module (debugger, dict):
   debugger.HandleCommand('command script add -f %s.label label' % __name__)

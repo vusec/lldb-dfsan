@@ -3,13 +3,23 @@
 import subprocess as sp
 import sys
 import lldb_dfsan
+import glob
 
 def compile():
-    args = ["clang", "main.c", "-o", "binary", "-fsanitize=dataflow", "-g"]
+    c_source_files = glob.glob('*.c')
+    cpp_source_files = glob.glob('*.cpp')
+    compiler = "clang"
+    if len(cpp_source_files):
+        compiler += "++"
+
+    args = [compiler, "-o", "binary", "-fsanitize=dataflow", "-g"]
+    args += c_source_files + cpp_source_files
     print("Running: " + " ".join(args))
     sp.check_call(args)
 
 def start_and_run(cmds):
+    compile()
+
     if isinstance(cmds, str):
         cmds = [cmds]
     args = ["lldb", "binary", "-b", "-o", "breakpoint set -p STOP", "-o", "run"]
