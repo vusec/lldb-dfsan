@@ -2,6 +2,7 @@
 
 import subprocess as sp
 import sys
+import lldb_dfsan
 
 def compile():
     args = ["clang", "main.c", "-o", "binary", "-fsanitize=dataflow", "-g"]
@@ -31,14 +32,12 @@ def clean_output(output):
     return output
 
 def expect(token, output):
-    output = clean_output(output)
     if not token in output:
-        print("Failed to find token " + token + " in " + output)
-        sys.exit(1)
+        raise AssertionError("Failed to find token " + token + " in " + output)
 
 def expect_not(token, output):
-    output = clean_output(output)
     if token in output:
-        print("Found unexpected token " + token + " in " + output)
-        sys.exit(1)
-    
+        raise AssertionError("Failed to find token " + token + " in " + output)
+
+def expect_member_taint(member_name, lbl, output):
+    expect(member_name + " - " + lldb_dfsan.format_label(lbl), output)

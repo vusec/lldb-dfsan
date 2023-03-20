@@ -38,7 +38,7 @@ class Color:
     UNDERLINE = "\033[4m"
 
 
-def format_label(label):
+def format_label(label : int):
    if label == 0:
       return "No taint"
    return Color.BOLD + Color.RED + "(Taint class " + str(label) + ")" + Color.END
