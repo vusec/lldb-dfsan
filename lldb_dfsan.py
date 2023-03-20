@@ -47,11 +47,19 @@ def print_label(result : lldb.SBCommandReturnObject, frame,
                 var : lldb.SBValue, indentation = 0):
    indent = " " * indentation
    type = var.GetType() # type: lldb.SBType
+
+   result.Print(indent + str(var.name) + " :")
    if type.type == lldb.eTypeClassBuiltin:
-      result.Print(indent + str(var.name))
-      result.Print(" - " + format_label(get_label_of_value(frame, var)) + "\n")
+      result.Print(" " + format_label(get_label_of_value(frame, var)) + "\n")
+
    if type.type == lldb.eTypeClassStruct or type.type == lldb.eTypeClassClass:
-      result.Print(indent + "struct " + type.name + " {\n")
+      result.Print(" struct " + type.name + " {\n")
+      for child in var.children:
+         print_label(result, frame, child, indentation + 2)
+      result.Print(indent + "}\n")
+
+   if type.type == lldb.eTypeClassArray:
+      result.Print(" array " + type.name + " {\n")
       for child in var.children:
          print_label(result, frame, child, indentation + 2)
       result.Print(indent + "}\n")

@@ -50,4 +50,4 @@ def expect_not(token, output):
         raise AssertionError("Failed to find token " + token + " in " + output)
 
 def expect_member_taint(member_name, lbl, output):
-    expect(member_name + " - " + lldb_dfsan.format_label(lbl), output)
+    expect(member_name + " : " + lldb_dfsan.format_label(lbl), output)
