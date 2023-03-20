@@ -40,7 +40,6 @@ pythonpath = utils_dir + ":" + main_dir
 if "PYTHONPATH" in os.environ:
     pythonpath += ":" + os.environ["PYTHONPATH"]
 os.environ["PYTHONPATH"] = pythonpath
-print(os.environ["PYTHONPATH"])
 
 if len(tests) == 0:
     for test in os.listdir(script_dir):
