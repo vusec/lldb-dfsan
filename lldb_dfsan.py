@@ -3,7 +3,6 @@
 import lldb
 import shlex
 import optparse
-import sys
 
 
 def get_label_of_address(frame, addr):
@@ -70,7 +69,7 @@ def print_label(
         result.Print(indent + "}\n")
 
 
-def label(debugger, command, result, dict):
+def label(debugger, command, result : lldb.SBCommandReturnObject, dict):
     command_args = shlex.split(command)
 
     usage = "usage: %prog"
@@ -78,10 +77,7 @@ def label(debugger, command, result, dict):
     parser = optparse.OptionParser(description=description, prog="label", usage=usage)
     label.__doc__ = parser.format_help()
 
-    try:
-        (options, args) = parser.parse_args(command_args)
-    except:
-        return
+    (options, args) = parser.parse_args(command_args)
 
     if len(args) == 0:
         print("Not enough arguments")
@@ -94,6 +90,9 @@ def label(debugger, command, result, dict):
             frame = process.GetSelectedThread().GetSelectedFrame()
             if frame:
                 var = frame.FindVariable(args[0])
+                if not var.IsValid():
+                    result.SetError("Could not find variable: " + args[0])
+                    return
                 print_label(result, frame, var)
 
 

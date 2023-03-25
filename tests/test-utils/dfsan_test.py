@@ -30,7 +30,8 @@ def start_and_run(cmds):
         args += ["-o"]
         args += [cmd]
     print("Running: " + " ".join(args))
-    return sp.check_output(args).decode("utf-8")
+    result = sp.run(args, stderr=sp.STDOUT, stdout=sp.PIPE)
+    return result.stdout.decode("utf-8")
 
 
 class Color:
@@ -47,7 +48,7 @@ def clean_output(output):
 
 
 def expect(token, output):
-    if not token in output:
+    if token not in output:
         raise AssertionError("Failed to find token " + token + " in " + output)
 
 
