@@ -5,6 +5,7 @@ import shlex
 import optparse
 import sys
 
+
 def get_label_of_address(frame, addr):
     thread = frame.thread
     process = thread.process
@@ -12,7 +13,7 @@ def get_label_of_address(frame, addr):
 
     # Transform addr to shadow value.
     shadow_addr = addr.GetLoadAddress(target) ^ 0x500000000000
-    error = lldb.SBError();
+    error = lldb.SBError()
     # Read shadow value from process.
     content = process.ReadMemory(shadow_addr, 1, error)
     if error.Fail():
@@ -23,8 +24,10 @@ def get_label_of_address(frame, addr):
     new_bytes = bytearray(content)
     return new_bytes[0]
 
+
 def get_label_of_value(frame, var):
     return get_label_of_address(frame, var.addr)
+
 
 class Color:
     HEADER = "\033[95m"
@@ -38,58 +41,61 @@ class Color:
     UNDERLINE = "\033[4m"
 
 
-def format_label(label : int):
-   if label == 0:
-      return "No taint"
-   return Color.BOLD + Color.RED + "(Taint class " + str(label) + ")" + Color.END
+def format_label(label: int):
+    if label == 0:
+        return "No taint"
+    return Color.BOLD + Color.RED + "(Taint class " + str(label) + ")" + Color.END
 
-def print_label(result : lldb.SBCommandReturnObject, frame,
-                var : lldb.SBValue, indentation = 0):
-   indent = " " * indentation
-   type = var.GetType() # type: lldb.SBType
 
-   result.Print(indent + str(var.name) + " :")
-   if type.type == lldb.eTypeClassBuiltin:
-      result.Print(" " + format_label(get_label_of_value(frame, var)) + "\n")
+def print_label(
+    result: lldb.SBCommandReturnObject, frame, var: lldb.SBValue, indentation=0
+):
+    indent = " " * indentation
+    type = var.GetType()  # type: lldb.SBType
 
-   if type.type == lldb.eTypeClassStruct or type.type == lldb.eTypeClassClass:
-      result.Print(" struct " + type.name + " {\n")
-      for child in var.children:
-         print_label(result, frame, child, indentation + 2)
-      result.Print(indent + "}\n")
+    result.Print(indent + str(var.name) + " :")
+    if type.type == lldb.eTypeClassBuiltin:
+        result.Print(" " + format_label(get_label_of_value(frame, var)) + "\n")
 
-   if type.type == lldb.eTypeClassArray:
-      result.Print(" array " + type.name + " {\n")
-      for child in var.children:
-         print_label(result, frame, child, indentation + 2)
-      result.Print(indent + "}\n")
+    if type.type == lldb.eTypeClassStruct or type.type == lldb.eTypeClassClass:
+        result.Print(" struct " + type.name + " {\n")
+        for child in var.children:
+            print_label(result, frame, child, indentation + 2)
+        result.Print(indent + "}\n")
+
+    if type.type == lldb.eTypeClassArray:
+        result.Print(" array " + type.name + " {\n")
+        for child in var.children:
+            print_label(result, frame, child, indentation + 2)
+        result.Print(indent + "}\n")
+
 
 def label(debugger, command, result, dict):
+    command_args = shlex.split(command)
 
-  command_args = shlex.split(command)
+    usage = "usage: %prog"
+    description = """Print DFSan labels"""
+    parser = optparse.OptionParser(description=description, prog="label", usage=usage)
+    label.__doc__ = parser.format_help()
 
-  usage = "usage: %prog"
-  description='''Print DFSan labels'''
-  parser = optparse.OptionParser(description=description, prog='label', usage=usage)
-  label.__doc__ = parser.format_help()
+    try:
+        (options, args) = parser.parse_args(command_args)
+    except:
+        return
 
-  try:
-      (options, args) = parser.parse_args(command_args)
-  except:
-      return
-  
-  if len(args) == 0:
-    print("Not enough arguments")
-    return
+    if len(args) == 0:
+        print("Not enough arguments")
+        return
 
-  target = debugger.GetSelectedTarget()
-  if target:
-    process = target.GetProcess()
-    if process:
-      frame = process.GetSelectedThread().GetSelectedFrame()
-      if frame:
-        var = frame.FindVariable(args[0])
-        print_label(result, frame, var)
+    target = debugger.GetSelectedTarget()
+    if target:
+        process = target.GetProcess()
+        if process:
+            frame = process.GetSelectedThread().GetSelectedFrame()
+            if frame:
+                var = frame.FindVariable(args[0])
+                print_label(result, frame, var)
 
-def __lldb_init_module (debugger, dict):
-  debugger.HandleCommand('command script add -f %s.label label' % __name__)
+
+def __lldb_init_module(debugger, dict):
+    debugger.HandleCommand("command script add -f %s.label label" % __name__)

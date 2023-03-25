@@ -5,9 +5,10 @@ import sys
 import lldb_dfsan
 import glob
 
+
 def compile():
-    c_source_files = glob.glob('*.c')
-    cpp_source_files = glob.glob('*.cpp')
+    c_source_files = glob.glob("*.c")
+    cpp_source_files = glob.glob("*.cpp")
     compiler = "clang"
     if len(cpp_source_files):
         compiler += "++"
@@ -16,6 +17,7 @@ def compile():
     args += c_source_files + cpp_source_files
     print("Running: " + " ".join(args))
     sp.check_call(args)
+
 
 def start_and_run(cmds):
     compile()
@@ -30,10 +32,12 @@ def start_and_run(cmds):
     print("Running: " + " ".join(args))
     return sp.check_output(args).decode("utf-8")
 
+
 class Color:
     RED = "\033[91m"
     END = "\033[0m"
     BOLD = "\033[1m"
+
 
 def clean_output(output):
     output = output.replace(Color.RED, "")
@@ -41,13 +45,16 @@ def clean_output(output):
     output = output.replace(Color.BOLD, "")
     return output
 
+
 def expect(token, output):
     if not token in output:
         raise AssertionError("Failed to find token " + token + " in " + output)
 
+
 def expect_not(token, output):
     if token in output:
         raise AssertionError("Failed to find token " + token + " in " + output)
+
 
 def expect_member_taint(member_name, lbl, output):
     expect(member_name + " : " + lldb_dfsan.format_label(lbl), output)
