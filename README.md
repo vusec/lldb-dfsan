@@ -29,6 +29,4 @@ i : array int[3] {
   [1] : (Taint class 1)
   [2] : No taint
 }
-
-(lldb) label variable
 ```
