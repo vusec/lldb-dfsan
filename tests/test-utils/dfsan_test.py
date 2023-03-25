@@ -24,7 +24,8 @@ def start_and_run(cmds):
 
     if isinstance(cmds, str):
         cmds = [cmds]
-    args = ["lldb", "binary", "-b", "-o", "breakpoint set -p STOP", "-o", "run"]
+    args = ["lldb", "binary", "--no-lldbinit",
+            "-b", "-o", "breakpoint set -p STOP", "-o", "run"]
     args += ["-o", "command script import lldb_dfsan"]
     for cmd in cmds:
         args += ["-o"]
