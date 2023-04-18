@@ -43,7 +43,7 @@ if "PYTHONPATH" in os.environ:
 os.environ["PYTHONPATH"] = pythonpath
 
 if len(tests) == 0:
-    for p in Path(script_dir).rglob('**/check.py'):
+    for p in Path(script_dir).rglob("**/check.py"):
         tests.append(str(p.parent))
 
 
@@ -75,7 +75,7 @@ for test in tests:
         if e.stderr:
             print(e.stderr.decode("utf-8"))
         continue
-    max_test_len_name = 50;
+    max_test_len_name = 50
     sys.stdout.write((max_test_len_name - len(test_name)) * " ")
     print("[" + Color.PASS + "OK" + Color.END + "]")
 
