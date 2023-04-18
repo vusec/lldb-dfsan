@@ -61,5 +61,8 @@ def expect_not(token, output):
 def expect_member_taint(member_name, lbl, output):
     expect(member_name + " : " + lldb_dfsan.format_label(lbl), output)
 
+def expect_no_member_taint(member_name, output):
+    expect(member_name + " : " + lldb_dfsan.format_label(0), output)
+
 def expect_no_shadow_mem(member_name,output):
-    expect(member_name + " : No shadow memory", output)
+    expect(member_name + " : " + lldb_dfsan.format_label(None), output)
