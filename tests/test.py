@@ -62,7 +62,8 @@ separator = Color.BLUE + Color.BOLD + "::" + Color.END
 print("Running {num} tests".format(num=len(tests)))
 had_error = False
 for test in tests:
-    test_name = str(Path(test).relative_to(script_dir)).replace("/", separator)
+    test_name = str(Path(test).relative_to(script_dir))
+    fancy_test_name = test_name.replace("/", separator)
     sys.stdout.write("• ")
     sys.stdout.write(test_name + " ")
     sys.stdout.flush()
