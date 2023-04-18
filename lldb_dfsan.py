@@ -4,16 +4,17 @@ import lldb
 import shlex
 import optparse
 
+
 class TaintData:
-    def __init__(self,
-                 address : int,
-                 taint : int):
+    def __init__(self, address: int, taint: int):
         self.address = address
         self.taint = taint
 
+
 taint_storage = {}
 
-def get_label_of_address(frame, addr, store_read = True):
+
+def get_label_of_address(frame, addr, store_read=True):
     thread = frame.thread
     process = thread.process
     target = process.target
@@ -30,7 +31,7 @@ def get_label_of_address(frame, addr, store_read = True):
         return None
 
     # Return read shadow value.
-    shadow_value = bytearray(content)[0] # type: int
+    shadow_value = bytearray(content)[0]  # type: int
 
     if store_read:
         taint_storage[load_addr] = shadow_value
@@ -40,6 +41,50 @@ def get_label_of_address(frame, addr, store_read = True):
 
 def get_label_of_value(frame, var):
     return get_label_of_address(frame, var.addr)
+
+
+def format_label(label: int):
+    if label is None:
+        return "No shadow memory"
+    if label == 0:
+        return "No taint"
+    return Color.BOLD + Color.RED + "(Taint class " + str(label) + ")" + Color.END
+
+
+class LabelOutput:
+    def __init__(self, only_tainted):
+        self.result = ""
+        self.only_tainted = only_tainted
+        self.delayed_structs = []
+        self.indentation = 0
+        self.indentation_change = 1
+
+    def start_struct(self, struct_name):
+        # Append the struct for now so we can print it on demand later.
+        self.delayed_structs.append(struct_name)
+
+    def end_struct(self):
+        if len(self.delayed_structs) != 0:
+            self.delayed_structs.pop()
+        else:
+            self.indentation -= self.indentation_change
+
+    def emit_delayed_structs(self):
+        for struct in self.delayed_structs:
+            self.print("struct " + struct + "\n")
+            self.indentation += self.indentation_change
+        self.delayed_structs = []
+
+    def print_member(self, member_name, label):
+        self.emit_delayed_structs()
+        self.print(member_name + " : " + format_label(label) + "\n")
+
+    def print(self, s: str):
+        self.result += " " * self.indentation
+        self.result += s
+
+    def get_final_output(self):
+        return self.result
 
 
 class Color:
@@ -54,56 +99,57 @@ class Color:
     UNDERLINE = "\033[4m"
 
 
-def format_label(label: int):
-    if label is None:
-        return "No shadow memory"
-    if label == 0:
-        return "No taint"
-    return Color.BOLD + Color.RED + "(Taint class " + str(label) + ")" + Color.END
-
-
-def print_label(
-    result: lldb.SBCommandReturnObject, frame, var: lldb.SBValue, indentation=0
-):
+def print_label(result: LabelOutput, frame, var: lldb.SBValue, indentation=0):
     indent = " " * indentation
     type = var.GetType()  # type: lldb.SBType
 
-    result.Print(indent + str(var.name) + " :")
-
     if type.type == lldb.eTypeClassBuiltin:
-        result.Print(" " + format_label(get_label_of_value(frame, var)) + "\n")
+        result.print_member(var.name, get_label_of_value(frame, var))
 
-    if type.type == lldb.eTypeClassTypedef:
-        result.Print(" " + format_label(get_label_of_value(frame, var)) + "\n")
+    elif type.type == lldb.eTypeClassTypedef:
+        result.print_member(var.name, get_label_of_value(frame, var))
 
     elif type.type == lldb.eTypeClassStruct or type.type == lldb.eTypeClassClass:
-        result.Print(" struct " + type.name + " {\n")
+        result.start_struct(type.name)
         for child in var.children:
             print_label(result, frame, child, indentation + 2)
-        result.Print(indent + "}\n")
 
     elif type.type == lldb.eTypeClassArray:
-        result.Print(" array " + type.name + " {\n")
+        result.print(" array " + type.name + " {\n")
         for child in var.children:
             print_label(result, frame, child, indentation + 2)
-        result.Print(indent + "}\n")
-    
+        result.print(indent + "}\n")
+
     elif type.type == lldb.eTypeClassPointer:
-        result.Print(" " + format_label(get_label_of_value(frame, var)) + "\n")
+        result.print_member(var.name, get_label_of_value(frame, var))
         print_label(result, frame, var.deref, indentation + 2)
     else:
-        result.Print("Unknown type: " + str(type))
+        result.print("Unknown type: " + str(type))
 
 
-def label(debugger, command, result : lldb.SBCommandReturnObject, dict):
+def label(debugger, command, result: lldb.SBCommandReturnObject, dict):
     command_args = shlex.split(command)
 
     usage = "usage: %prog"
     description = """Print DFSan labels"""
     parser = optparse.OptionParser(description=description, prog="label", usage=usage)
-    parser.add_option("-p", "--ptrs",
-                  action="store_true", dest="diff", default=False,
-                  help="show the taint diff compared to the previous printout")
+    parser.add_option(
+        "-p",
+        "--ptrs",
+        action="store_true",
+        dest="follow_pointers",
+        default=False,
+        help="Follow pointers when printing taint",
+    )
+
+    parser.add_option(
+        "-o",
+        "--only-tainted",
+        action="store_true",
+        dest="only_tainted",
+        default=False,
+        help="show only tainted members",
+    )
 
     label.__doc__ = parser.format_help()
 
@@ -117,7 +163,7 @@ def label(debugger, command, result : lldb.SBCommandReturnObject, dict):
     if target:
         process = target.GetProcess()
         if process:
-            frame = process.GetSelectedThread().GetSelectedFrame() # type: lldb.SBFrame
+            frame = process.GetSelectedThread().GetSelectedFrame()  # type: lldb.SBFrame
             if frame:
                 expr = " ".join(args)
                 var = frame.FindVariable(expr)
@@ -128,7 +174,9 @@ def label(debugger, command, result : lldb.SBCommandReturnObject, dict):
                         result.AppendMessage("Expression evaluation failed due to:\n")
                         result.AppendMessage(var.error.description)
                         return
-                print_label(result, frame, var)
+                output = LabelOutput(only_tainted=options.only_tainted)
+                print_label(output, frame, var)
+                result.Print(output.get_final_output())
 
 
 def __lldb_init_module(debugger, dict):
