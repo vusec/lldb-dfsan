@@ -18,20 +18,22 @@ def get_label_of_address(frame, addr, store_read = True):
     process = thread.process
     target = process.target
 
+    load_addr = addr.GetLoadAddress(target)
+
     # Transform addr to shadow value.
-    shadow_addr = addr.GetLoadAddress(target) ^ 0x500000000000
-    error = lldb.SBError()
+    shadow_addr = load_addr ^ 0x500000000000
+
     # Read shadow value from process.
+    error = lldb.SBError()
     content = process.ReadMemory(shadow_addr, 1, error)
     if error.Fail():
-        print("Failed to read process memory at " + str(shadow_addr))
-        print(error)
+        return None
 
     # Return read shadow value.
     shadow_value = bytearray(content)[0] # type: int
 
     if store_read:
-        taint_storage[addr.GetLoadAddress(target)] = shadow_value
+        taint_storage[load_addr] = shadow_value
 
     return shadow_value
 
@@ -53,6 +55,8 @@ class Color:
 
 
 def format_label(label: int):
+    if label is None:
+        return "No shadow memory"
     if label == 0:
         return "No taint"
     return Color.BOLD + Color.RED + "(Taint class " + str(label) + ")" + Color.END
@@ -65,20 +69,27 @@ def print_label(
     type = var.GetType()  # type: lldb.SBType
 
     result.Print(indent + str(var.name) + " :")
+
     if type.type == lldb.eTypeClassBuiltin:
         result.Print(" " + format_label(get_label_of_value(frame, var)) + "\n")
 
-    if type.type == lldb.eTypeClassStruct or type.type == lldb.eTypeClassClass:
+    elif type.type == lldb.eTypeClassStruct or type.type == lldb.eTypeClassClass:
         result.Print(" struct " + type.name + " {\n")
         for child in var.children:
             print_label(result, frame, child, indentation + 2)
         result.Print(indent + "}\n")
 
-    if type.type == lldb.eTypeClassArray:
+    elif type.type == lldb.eTypeClassArray:
         result.Print(" array " + type.name + " {\n")
         for child in var.children:
             print_label(result, frame, child, indentation + 2)
         result.Print(indent + "}\n")
+    
+    elif type.type == lldb.eTypeClassPointer:
+        result.Print(" " + format_label(get_label_of_value(frame, var)) + "\n")
+        print_label(result, frame, var.deref, indentation + 2)
+    else:
+        result.Print("Unknown type: " + str(type))
 
 
 def label(debugger, command, result : lldb.SBCommandReturnObject, dict):
