@@ -57,13 +57,14 @@ def run_test(directory):
         if args.verbose and output:
             print(output)
 
+separator = Color.BLUE + Color.BOLD + "::" + Color.END
 
 print("Running {num} tests".format(num=len(tests)))
 had_error = False
 for test in tests:
-    test_name = str(Path(test).relative_to(script_dir)).replace("/", "::")
+    test_name = str(Path(test).relative_to(script_dir)).replace("/", separator)
     sys.stdout.write("• ")
-    sys.stdout.write(Color.BOLD + test_name + " " + Color.END)
+    sys.stdout.write(test_name + " ")
     sys.stdout.flush()
     try:
         run_test(test)
