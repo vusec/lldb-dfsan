@@ -4,8 +4,16 @@ import lldb
 import shlex
 import optparse
 
+class TaintData:
+    def __init__(self,
+                 address : int,
+                 taint : int):
+        self.address = address
+        self.taint = taint
 
-def get_label_of_address(frame, addr):
+taint_storage = {}
+
+def get_label_of_address(frame, addr, store_read = True):
     thread = frame.thread
     process = thread.process
     target = process.target
@@ -20,8 +28,12 @@ def get_label_of_address(frame, addr):
         print(error)
 
     # Return read shadow value.
-    new_bytes = bytearray(content)
-    return new_bytes[0]
+    shadow_value = bytearray(content)[0] # type: int
+
+    if store_read:
+        taint_storage[addr.GetLoadAddress(target)] = shadow_value
+
+    return shadow_value
 
 
 def get_label_of_value(frame, var):
@@ -75,6 +87,10 @@ def label(debugger, command, result : lldb.SBCommandReturnObject, dict):
     usage = "usage: %prog"
     description = """Print DFSan labels"""
     parser = optparse.OptionParser(description=description, prog="label", usage=usage)
+    parser.add_option("-p", "--ptrs",
+                  action="store_true", dest="diff", default=False,
+                  help="show the taint diff compared to the previous printout")
+
     label.__doc__ = parser.format_help()
 
     (options, args) = parser.parse_args(command_args)
@@ -87,12 +103,17 @@ def label(debugger, command, result : lldb.SBCommandReturnObject, dict):
     if target:
         process = target.GetProcess()
         if process:
-            frame = process.GetSelectedThread().GetSelectedFrame()
+            frame = process.GetSelectedThread().GetSelectedFrame() # type: lldb.SBFrame
             if frame:
-                var = frame.FindVariable(args[0])
+                expr = " ".join(args)
+                var = frame.FindVariable(expr)
                 if not var.IsValid():
-                    result.SetError("Could not find variable: " + args[0])
-                    return
+                    var = frame.EvaluateExpression(expr)
+                    if var.error.fail:
+                        result.SetError("Could not find variable: " + expr)
+                        result.AppendMessage("Expression evaluation failed due to:\n")
+                        result.AppendMessage(var.error.description)
+                        return
                 print_label(result, frame, var)
 
 
