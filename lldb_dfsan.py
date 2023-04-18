@@ -56,13 +56,17 @@ def format_label(label: int):
 
 
 class LabelOutput:
-    def __init__(self, only_tainted, follow_pointers):
+    def __init__(self, frame, only_tainted, follow_pointers):
         self.result = ""
         self.only_tainted = only_tainted
         self.follow_pointers = follow_pointers
         self.delayed_structs = []
         self.indentation = 0
         self.indentation_change = 1
+        self.seen_addrs = set()
+        thread = frame.thread
+        process = thread.process
+        self.target = process.target
 
     def start_struct(self, struct_name):
         # Append the struct for now so we can print it on demand later.
@@ -95,6 +99,20 @@ class LabelOutput:
         if len(self.result) == 0:
             return "No tainted memory found"
         return self.result
+    
+    def _value_to_unique_addr(self, val : lldb.SBValue):
+        load_addr = val.addr.GetLoadAddress(self.target)
+        return str(load_addr) + " " + str(val.type)
+
+    def printed_value(self, val : lldb.SBValue):
+        self.seen_addrs.add(self._value_to_unique_addr(val))
+
+    def should_print_value(self, val : lldb.SBValue):
+        load_addr = self._value_to_unique_addr(val)
+
+        if load_addr in self.seen_addrs:
+            return False
+        return True
 
 
 class Color:
@@ -112,6 +130,10 @@ class Color:
 def print_label(result: LabelOutput, frame, var: lldb.SBValue, indentation=0):
     indent = " " * indentation
     type = var.GetType()  # type: lldb.SBType
+
+    if not result.should_print_value(var):
+        return
+    result.printed_value(var)
 
     if type.type == lldb.eTypeClassBuiltin:
         result.print_member(var.name, get_label_of_value(frame, var))
@@ -136,6 +158,7 @@ def print_label(result: LabelOutput, frame, var: lldb.SBValue, indentation=0):
             print_label(result, frame, var.deref, indentation + 2)
     else:
         result.print("Unknown type: " + str(type))
+
 
 
 def label(debugger, command, result: lldb.SBCommandReturnObject, dict):
@@ -185,7 +208,8 @@ def label(debugger, command, result: lldb.SBCommandReturnObject, dict):
                         result.AppendMessage("Expression evaluation failed due to:\n")
                         result.AppendMessage(var.error.description)
                         return
-                output = LabelOutput(only_tainted=options.only_tainted,
+                output = LabelOutput(frame=frame,
+                                     only_tainted=options.only_tainted,
                                      follow_pointers=options.follow_pointers)
                 print_label(output, frame, var)
                 result.Print(output.get_final_output())
