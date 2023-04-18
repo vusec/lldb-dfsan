@@ -7,6 +7,7 @@ import tempfile
 import shutil
 import os.path as path
 import sys
+from pathlib import Path
 
 tests = []
 
@@ -42,9 +43,8 @@ if "PYTHONPATH" in os.environ:
 os.environ["PYTHONPATH"] = pythonpath
 
 if len(tests) == 0:
-    for test in os.listdir(script_dir):
-        if os.path.exists(path.join(script_dir, test, "check.py")):
-            tests.append(path.join(script_dir, test))
+    for p in Path(script_dir).rglob('**/check.py'):
+        tests.append(str(p.parent))
 
 
 def run_test(directory):
@@ -61,8 +61,9 @@ def run_test(directory):
 print("Running {num} tests".format(num=len(tests)))
 had_error = False
 for test in tests:
-    test_name = os.path.basename(test)
-    sys.stdout.write("• " + test_name + " ")
+    test_name = str(Path(test).relative_to(script_dir)).replace("/", "::")
+    sys.stdout.write("• ")
+    sys.stdout.write(Color.BOLD + test_name + " " + Color.END)
     sys.stdout.flush()
     try:
         run_test(test)
@@ -74,7 +75,8 @@ for test in tests:
         if e.stderr:
             print(e.stderr.decode("utf-8"))
         continue
-    sys.stdout.write((30 - len(test_name)) * " ")
+    max_test_len_name = 50;
+    sys.stdout.write((max_test_len_name - len(test_name)) * " ")
     print("[" + Color.PASS + "OK" + Color.END + "]")
 
 if had_error:
