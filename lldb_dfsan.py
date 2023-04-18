@@ -73,6 +73,9 @@ def print_label(
     if type.type == lldb.eTypeClassBuiltin:
         result.Print(" " + format_label(get_label_of_value(frame, var)) + "\n")
 
+    if type.type == lldb.eTypeClassTypedef:
+        result.Print(" " + format_label(get_label_of_value(frame, var)) + "\n")
+
     elif type.type == lldb.eTypeClassStruct or type.type == lldb.eTypeClassClass:
         result.Print(" struct " + type.name + " {\n")
         for child in var.children:
