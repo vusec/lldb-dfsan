@@ -21,6 +21,10 @@ def get_label_of_address(frame, addr, store_read=True):
 
     load_addr = addr.GetLoadAddress(target)
 
+    # Avoid finding taint by accident on nullptrs.
+    if load_addr == 0:
+        return None
+
     # Transform addr to shadow value.
     shadow_addr = load_addr ^ 0x500000000000
 
