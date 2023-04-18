@@ -2,7 +2,7 @@
 
 from dfsan_test import *
 
-output = start_and_run("label f")
+output = start_and_run("label --all f")
 expect_no_member_taint("member", output)
 expect_no_member_taint("member2", output)
 expect_member_taint("nested", 1, output)

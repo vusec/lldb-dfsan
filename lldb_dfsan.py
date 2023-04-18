@@ -76,6 +76,9 @@ class LabelOutput:
         self.delayed_structs = []
 
     def print_member(self, member_name, label):
+        if self.only_tainted and (label is None or label == 0):
+            return
+        
         self.emit_delayed_structs()
         self.print(member_name + " : " + format_label(label) + "\n")
 
@@ -84,6 +87,8 @@ class LabelOutput:
         self.result += s
 
     def get_final_output(self):
+        if len(self.result) == 0:
+            return "No tainted memory found"
         return self.result
 
 
@@ -135,19 +140,19 @@ def label(debugger, command, result: lldb.SBCommandReturnObject, dict):
     parser = optparse.OptionParser(description=description, prog="label", usage=usage)
     parser.add_option(
         "-p",
-        "--ptrs",
-        action="store_true",
+        "--no-follow-ptr",
+        action="store_false",
         dest="follow_pointers",
-        default=False,
+        default=True,
         help="Follow pointers when printing taint",
     )
 
     parser.add_option(
-        "-o",
-        "--only-tainted",
-        action="store_true",
+        "-a",
+        "--all",
+        action="store_false",
         dest="only_tainted",
-        default=False,
+        default=True,
         help="show only tainted members",
     )
 

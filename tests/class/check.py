@@ -2,6 +2,6 @@
 
 from dfsan_test import *
 
-output = start_and_run("label f")
+output = start_and_run("label --all f")
 expect_member_taint("member", 1, output)
 expect_member_taint("member2", 0, output)
