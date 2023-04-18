@@ -56,9 +56,10 @@ def format_label(label: int):
 
 
 class LabelOutput:
-    def __init__(self, only_tainted):
+    def __init__(self, only_tainted, follow_pointers):
         self.result = ""
         self.only_tainted = only_tainted
+        self.follow_pointers = follow_pointers
         self.delayed_structs = []
         self.indentation = 0
         self.indentation_change = 1
@@ -131,7 +132,8 @@ def print_label(result: LabelOutput, frame, var: lldb.SBValue, indentation=0):
 
     elif type.type == lldb.eTypeClassPointer:
         result.print_member(var.name, get_label_of_value(frame, var))
-        print_label(result, frame, var.deref, indentation + 2)
+        if result.follow_pointers:
+            print_label(result, frame, var.deref, indentation + 2)
     else:
         result.print("Unknown type: " + str(type))
 
@@ -183,7 +185,8 @@ def label(debugger, command, result: lldb.SBCommandReturnObject, dict):
                         result.AppendMessage("Expression evaluation failed due to:\n")
                         result.AppendMessage(var.error.description)
                         return
-                output = LabelOutput(only_tainted=options.only_tainted)
+                output = LabelOutput(only_tainted=options.only_tainted,
+                                     follow_pointers=options.follow_pointers)
                 print_label(output, frame, var)
                 result.Print(output.get_final_output())
 
