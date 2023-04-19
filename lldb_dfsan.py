@@ -60,7 +60,7 @@ class LabelOutput:
         self.result = ""
         self.only_tainted = only_tainted
         self.follow_pointers = follow_pointers
-        self.delayed_structs = []
+        self.delayed_scopes = []
         self.indentation = 0
         self.indentation_change = 1
         self.seen_addrs = set()
@@ -68,27 +68,27 @@ class LabelOutput:
         process = thread.process
         self.target = process.target
 
-    def start_struct(self, struct_name):
+    def start_scope(self, struct_name):
         # Append the struct for now so we can print it on demand later.
-        self.delayed_structs.append(struct_name)
+        self.delayed_scopes.append(struct_name)
 
-    def end_struct(self):
-        if len(self.delayed_structs) != 0:
-            self.delayed_structs.pop()
+    def end_scope(self):
+        if len(self.delayed_scopes) != 0:
+            self.delayed_scopes.pop()
         else:
             self.indentation -= self.indentation_change
 
-    def emit_delayed_structs(self):
-        for struct in self.delayed_structs:
-            self.print("struct " + struct + "\n")
+    def emit_delayed_scopes(self):
+        for scope in self.delayed_scopes:
+            self.print(scope + "\n")
             self.indentation += self.indentation_change
-        self.delayed_structs = []
+        self.delayed_scopes = []
 
     def print_member(self, member_name, label):
         if self.only_tainted and (label is None or label == 0):
             return
         
-        self.emit_delayed_structs()
+        self.emit_delayed_scopes()
         self.print(member_name + " : " + format_label(label) + "\n")
 
     def print(self, s: str):
@@ -142,15 +142,16 @@ def print_label(result: LabelOutput, frame, var: lldb.SBValue, indentation=0):
         result.print_member(var.name, get_label_of_value(frame, var))
 
     elif type.type == lldb.eTypeClassStruct or type.type == lldb.eTypeClassClass:
-        result.start_struct(type.name)
+        result.start_scope("struct " + type.name)
         for child in var.children:
             print_label(result, frame, child, indentation + 2)
+        result.end_scope()
 
     elif type.type == lldb.eTypeClassArray:
-        result.print(" array " + type.name + " {\n")
+        result.start_scope(var.name + " : " + type.name)
         for child in var.children:
             print_label(result, frame, child, indentation + 2)
-        result.print(indent + "}\n")
+        result.end_scope()
 
     elif type.type == lldb.eTypeClassPointer:
         result.print_member(var.name, get_label_of_value(frame, var))
