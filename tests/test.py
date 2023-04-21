@@ -57,7 +57,7 @@ def run_test(directory):
         if args.verbose and output:
             print(output)
 
-separator = Color.BLUE + Color.BOLD + "::" + Color.END
+separator = Color.BLUE + Color.BOLD + "⇉" + Color.END
 
 print("Running {num} tests".format(num=len(tests)))
 had_error = False
@@ -65,7 +65,7 @@ for test in tests:
     test_name = str(Path(test).relative_to(script_dir))
     fancy_test_name = test_name.replace("/", separator)
     sys.stdout.write("• ")
-    sys.stdout.write(test_name + " ")
+    sys.stdout.write(fancy_test_name + " ")
     sys.stdout.flush()
     try:
         run_test(test)
@@ -78,8 +78,8 @@ for test in tests:
             print(e.stderr.decode("utf-8"))
         continue
     max_test_len_name = 50
-    sys.stdout.write((max_test_len_name - len(test_name)) * " ")
-    print("[" + Color.PASS + "OK" + Color.END + "]")
+    sys.stdout.write((max_test_len_name - len(test_name)) * "┄")
+    print(Color.PASS + " ✔" + Color.END)
 
 if had_error:
     sys.exit(1)
