@@ -56,13 +56,13 @@ def format_label(label: int):
 
 
 class LabelOutput:
-    def __init__(self, frame, only_tainted, follow_pointers):
+    def __init__(self, frame, only_tainted, follow_pointers, indentation):
         self.result = ""
         self.only_tainted = only_tainted
         self.follow_pointers = follow_pointers
         self.delayed_scopes = []
         self.indentation = 0
-        self.indentation_change = 1
+        self.indentation_change = indentation
         self.seen_addrs = set()
         thread = frame.thread
         process = thread.process
@@ -178,6 +178,16 @@ def label(debugger, command, result: lldb.SBCommandReturnObject, dict):
     )
 
     parser.add_option(
+        "-i",
+        "--indent",
+        action="store",
+        type="int",
+        dest="indentation",
+        default=0,
+        help="Indentation in spaces for nested values",
+    )
+
+    parser.add_option(
         "-a",
         "--all",
         action="store_false",
@@ -211,7 +221,8 @@ def label(debugger, command, result: lldb.SBCommandReturnObject, dict):
                         return
                 output = LabelOutput(frame=frame,
                                      only_tainted=options.only_tainted,
-                                     follow_pointers=options.follow_pointers)
+                                     follow_pointers=options.follow_pointers,
+                                     indentation=options.indentation)
                 print_label(output, frame, var)
                 result.Print(output.get_final_output())
 
