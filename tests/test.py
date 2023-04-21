@@ -27,11 +27,13 @@ class Color:
     UNDERLINE = "\033[4m"
 
     PASS = BOLD + GREEN
+    WARN = BOLD + YELLOW
     FAIL = BOLD + RED
 
 
 parser = argparse.ArgumentParser(prog="test", description="Runs the tests")
-parser.add_argument("--verbose", action="store_true", help="Hides verbose output")
+parser.add_argument("--verbose", action="store_true", dest="verbose", help="Enbles verbose output")
+parser.add_argument("-f", "--filter", action="store", dest="filter", default="", help="Filter tests")
 args = parser.parse_args()
 
 
@@ -67,19 +69,26 @@ for test in tests:
     sys.stdout.write("• ")
     sys.stdout.write(fancy_test_name + " ")
     sys.stdout.flush()
-    try:
-        run_test(test)
-    except sp.CalledProcessError as e:
-        had_error = True
-        print(Color.FAIL + "FAIL" + Color.END)
-        if e.stdout:
-            print(e.stdout.decode("utf-8"))
-        if e.stderr:
-            print(e.stderr.decode("utf-8"))
-        continue
+
+
+    status = ""
+    if args.filter in test_name:
+        try:
+            run_test(test)
+        except sp.CalledProcessError as e:
+            had_error = True
+            print(Color.FAIL + "FAIL" + Color.END)
+            if e.stdout:
+                print(e.stdout.decode("utf-8"))
+            if e.stderr:
+                print(e.stderr.decode("utf-8"))
+            continue
+        status = Color.PASS + " ✔" + status + Color.END
+    else:
+        status = Color.WARN + " Skipped" + Color.END
     max_test_len_name = 50
     sys.stdout.write((max_test_len_name - len(test_name)) * "┄")
-    print(Color.PASS + " ✔" + Color.END)
+    print(status)
 
 if had_error:
     sys.exit(1)

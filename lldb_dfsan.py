@@ -10,8 +10,14 @@ class TaintData:
         self.address = address
         self.taint = taint
 
-
+old_taint_storage = {}
 taint_storage = {}
+
+def get_previous_taint(addr : int):
+    if addr in old_taint_storage:
+        return old_taint_storage[addr]
+    return None
+
 
 
 def get_label_of_address(frame, addr, store_read=True):
@@ -19,7 +25,7 @@ def get_label_of_address(frame, addr, store_read=True):
     process = thread.process
     target = process.target
 
-    load_addr = addr.GetLoadAddress(target)
+    load_addr = addr.GetLoadAddress(target) # type: int
 
     # Avoid finding taint by accident on nullptrs.
     if load_addr == 0:
@@ -56,13 +62,15 @@ def format_label(label: int):
 
 
 class LabelOutput:
-    def __init__(self, frame, only_tainted, follow_pointers, indentation):
+    def __init__(self, frame, only_tainted, follow_pointers, indentation, diff):
         self.result = ""
         self.only_tainted = only_tainted
         self.follow_pointers = follow_pointers
+        self.indentation_change = indentation
+        self.diff = diff
+
         self.delayed_scopes = []
         self.indentation = 0
-        self.indentation_change = indentation
         self.seen_addrs = set()
         thread = frame.thread
         process = thread.process
@@ -84,10 +92,17 @@ class LabelOutput:
             self.indentation += self.indentation_change
         self.delayed_scopes = []
 
-    def print_member(self, member_name, label):
+    def print_member(self, var : lldb.SBValue, label):
+        addr = var.addr.GetLoadAddress(self.target)
+        if self.diff:
+            old_label = get_previous_taint(addr)
+            if old_label == label:
+                return
+        
         if self.only_tainted and (label is None or label == 0):
             return
         
+        member_name = var.name
         self.emit_delayed_scopes()
         self.print(member_name + " : " + format_label(label) + "\n")
 
@@ -136,10 +151,10 @@ def print_label(result: LabelOutput, frame, var: lldb.SBValue, indentation=0):
     result.printed_value(var)
 
     if type.type == lldb.eTypeClassBuiltin:
-        result.print_member(var.name, get_label_of_value(frame, var))
+        result.print_member(var, get_label_of_value(frame, var))
 
     elif type.type == lldb.eTypeClassTypedef:
-        result.print_member(var.name, get_label_of_value(frame, var))
+        result.print_member(var, get_label_of_value(frame, var))
 
     elif type.type == lldb.eTypeClassStruct or type.type == lldb.eTypeClassClass:
         result.start_scope("struct " + type.name)
@@ -154,7 +169,7 @@ def print_label(result: LabelOutput, frame, var: lldb.SBValue, indentation=0):
         result.end_scope()
 
     elif type.type == lldb.eTypeClassPointer:
-        result.print_member(var.name, get_label_of_value(frame, var))
+        result.print_member(var, get_label_of_value(frame, var))
         if result.follow_pointers:
             print_label(result, frame, var.deref, indentation + 2)
     else:
@@ -196,6 +211,15 @@ def label(debugger, command, result: lldb.SBCommandReturnObject, dict):
         help="show only tainted members",
     )
 
+    parser.add_option(
+        "-d",
+        "--diff",
+        action="store_true",
+        dest="diff",
+        default=False,
+        help="Show only taint that changed compared to the last invocation",
+    )
+
     label.__doc__ = parser.format_help()
 
     (options, args) = parser.parse_args(command_args)
@@ -219,10 +243,13 @@ def label(debugger, command, result: lldb.SBCommandReturnObject, dict):
                         result.AppendMessage("Expression evaluation failed due to:\n")
                         result.AppendMessage(var.error.description)
                         return
+                global old_taint_storage
+                old_taint_storage = taint_storage.copy()
                 output = LabelOutput(frame=frame,
                                      only_tainted=options.only_tainted,
                                      follow_pointers=options.follow_pointers,
-                                     indentation=options.indentation)
+                                     indentation=options.indentation,
+                                     diff=options.diff)
                 print_label(output, frame, var)
                 result.Print(output.get_final_output())
 
