@@ -7,8 +7,7 @@ variables, structures and memory in the target process.
 ## Installation
 
 ```bash
-wget "https://raw.githubusercontent.com/vusec/lldb-dfsan/main/lldb_dfsan.py" ;
-sudo mv lldb_dfsan.py (lldb -P) ;
+pip install lldb-dfsan
 echo "command script import lldb_dfsan" >> .lldbinit
 ```
 

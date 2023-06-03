@@ -1,0 +1,23 @@
+[project]
+name = "lldb_dfsan"
+version = "0.1"
+authors = [
+  { name="Raphael Isemann", email="teemperor@gmail.com" },
+]
+description = "LLDB plugin for debugging DFSan'd binaries."
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Software Development :: Debuggers"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/vusec/lldb-dfsan"
+"Bug Tracker" = "https://github.com/vusec/lldb-dfsan/issues"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
