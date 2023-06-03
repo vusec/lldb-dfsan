@@ -251,7 +251,7 @@ def label(debugger, command, result: lldb.SBCommandReturnObject, dict):
                                      indentation=options.indentation,
                                      diff=options.diff)
                 print_label(output, frame, var)
-                result.Print(output.get_final_output())
+                result.Print(output.get_final_output().rstrip() + "\n")
 
 
 def __lldb_init_module(debugger, dict):
