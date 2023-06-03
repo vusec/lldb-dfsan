@@ -7,7 +7,7 @@ variables, structures and memory in the target process.
 ## Installation
 
 ```bash
-pip install lldb-dfsan && echo "command script import lldb_dfsan" >> .lldbinit
+pip install lldb-dfsan && echo "command script import lldb_dfsan" >> ~/.lldbinit
 ```
 
 ## How to use
